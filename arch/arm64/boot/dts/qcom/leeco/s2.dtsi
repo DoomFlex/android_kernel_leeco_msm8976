@@ -231,9 +231,9 @@
 	status = "disabled";
 };
 
-&android_usb {
+/*&android_usb {
 	qcom,android-usb-cdrom;
-};
+};*/
 
 &usb_otg {
 	qcom,hsusb-otg-phy-init-seq =
@@ -356,13 +356,13 @@
 		qcom,ce-opp-freq = <100000000>;
 	};
 
-	blsp1_uart1: serial@78af000 {
-		compatible = "qcom,msm-lsuart-v14";
+	blsp1_uart1: uart@78af000 {
+		compatible = "qcom,msm-hsuart-v14";
 		reg = <0x78af000 0x200>;
 		interrupts = <0 107 0>;
 		status = "ok";
 		clocks = <&clock_gcc clk_gcc_blsp1_uart1_apps_clk>,
-		<&clock_gcc clk_gcc_blsp1_ahb_clk>;
+				<&clock_gcc clk_gcc_blsp1_ahb_clk>;
 		clock-names = "core_clk", "iface_clk";
 		pinctrl-names = "sleep", "default";
 		pinctrl-0 = <&hsuart_sleep>;
@@ -387,8 +387,8 @@
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		input-name = "gpio-keys";
-		pinctrl-names = "tlmm_gpio_key_active","tlmm_gpio_key_suspend";
+		label = "gpio-keys";
+		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_key_active>;
 		pinctrl-1 = <&gpio_key_suspend>;
 
@@ -483,13 +483,13 @@
 		qcom,headset-detect-gpios = <&msm_gpio 114 0>;
 		asoc-platform = <&pcm0>, <&pcm1>, <&pcm2>, <&voip>, <&voice>,
 				<&loopback>, <&compress>, <&hostless>,
-				<&afe>, <&lsm>, <&routing>, <&lpa>,
+				<&afe>, <&lsm>, <&routing>, <&cpe>,
 				<&voice_svc>;
 		asoc-platform-names = "msm-pcm-dsp.0", "msm-pcm-dsp.1", "msm-pcm-dsp.2",
 				"msm-voip-dsp", "msm-pcm-voice", "msm-pcm-loopback",
 				"msm-compress-dsp", "msm-pcm-hostless", "msm-pcm-afe",
-				"msm-lsm-client", "msm-pcm-routing", "msm-pcm-lpa",
-				"msm-voice-svc";
+				"msm-lsm-client", "msm-pcm-routing", "msm-cpe-lsm",
+				"msm-pcm-dsp-noirq";
 		asoc-cpu = <&dai_pri_auxpcm>, <&dai_hdmi>,
 				<&dai_mi2s0>, <&dai_mi2s1>, <&dai_mi2s2>, <&dai_mi2s3>,
 				<&dai_mi2s5>, <&dai_mi2s6>,
@@ -537,10 +537,31 @@
 	};
 };
 
-&tlmm_pinmux {
-	tlmm_gpio_key {
-		qcom,pins = <&gp 112>, <&gp 113>;
-		qcom,num-grp-pins = <2>;
+&msm_gpio {
+	gpio_key_active: gpio_key_active {
+		mux {
+			pins = "gpio112", "gpio113";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio112", "gpio113";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
+	};
+
+	gpio_key_suspend: gpio_key_suspend {
+		mux {
+			pins = "gpio112", "gpio113";
+			function = "gpio";
+		};
+
+		config {
+			pins = "gpio112", "gpio113"";
+			drive-strength = <2>;
+			bias-pull-up;
+		};
 	};
 };
 
@@ -586,8 +607,12 @@
 	bias-disable;
 };
 
-&pmi8950_haptic {
+&pmi_haptic {
 	qcom,vmax-mv = <3300>;
+};
+
+&mdss_dsi {
+	hw-config = "split_dsi";
 };
 
 &mdss_mdp {
@@ -623,14 +648,31 @@
 	qcom,mdss-dsi-pan-fps-update = "dfps_immediate_porch_mode_hfp";
 };
 
-&pmx_mdss {
-	qcom,num-grp-pins = <1>;
-	qcom,pins = <&gp 25>;
+&mdss_dsi_active {
+	mux {
+		pins = "gpio25";
+		function = "gpio";
+	};
+	config {
+		pins = "gpio25";
+		drive-strength = <2>; /* 2 mA */
+		bias-disable = <0>; /* no pull */
+		output-high;
+	};
 };
 
-&pmx_mdss_te {
-	qcom,num-grp-pins = <1>;
-	qcom,pins = <&gp 24>;
+&mdss_dsi_suspend {
+	mux {
+		pins = "gpio25";
+		function = "gpio";
+	};
+	config {
+		pins = "gpio25";
+		drive-strength = <2>; /* 2 mA */
+		/delete-property/ bias-pull-down;
+		bias-disable = <0>; /* no pull */
+		output-low;
+	};
 };
 
 &mdss_dsi0 {
@@ -641,6 +683,25 @@
 	qcom,platform-reset-gpio = <&msm_gpio 25 0>;
 };
 
+&mdss_dsi1 {
+	status = "disabled";
+};
+
+&labibb {
+	qcom,lab@de00 {
+		qcom,qpnp-lab-init-voltage = <5600000>;
+		qcom,qpnp-lab-init-lcd-voltage = <5600000>;
+		interrupts = <0x3 0xde 0x0 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names = "lab_vreg_not_ok_interrupt";
+	};
+	qcom,ibb@dc00 {
+		qcom,qpnp-ibb-init-voltage = <5600000>;
+		qcom,qpnp-ibb-init-lcd-voltage = <5600000>;
+		interrupts = <0x3 0xdc 0x0 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "ibb_vreg_not_ok_interrupt";
+	};
+};
+
 / {
 	qrd_batterydata: qcom,battery-data {
 		qcom,batt-id-range-pct = <15>;
@@ -649,7 +710,7 @@
 	};
 };
 
-&pmi8950_charger {
+&qpnp_smbcharger {
 	qcom,float-voltage-mv = <4400>;
 	qcom,chg-led-sw-controls;
 	qcom,thermal-mitigation = <4500 3000 2000 1000 900 600 0>;
@@ -668,7 +729,7 @@
 	qcom,vchg_sns-vadc = <&pmi8950_vadc>;
 };
 
-&pmi8950_fg {
+&qpnp_fg {
 	qcom,battery-data = <&qrd_batterydata>;
 	qcom,cold-bat-decidegc = <(0)>;
 	qcom,cool-bat-decidegc = <(150)>;
